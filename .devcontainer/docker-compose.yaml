@@ -1,0 +1,47 @@
+networks:
+  egames-network:
+    name: egames-network
+
+volumes:
+  db-pg-data: null
+
+services:
+  egames-db:
+    image: postgres:14.2
+    restart: unless-stopped
+    volumes:
+      - db-pg-data:/var/lib/postgresql/data
+    networks:
+      - egames-network
+    environment:
+      - POSTGRES_USER=${DATABASE_USER}
+      - POSTGRES_PASSWORD=${DATABASE_PASSWORD}
+      - POSTGRES_DB=${DATABASE_NAME}
+    healthcheck:
+      test: pg_isready -U "${DATABASE_USER}" -d "${DATABASE_NAME}"
+      interval: 5s
+      timeout: 30s
+      retries: 3
+
+  adminer:
+    image: adminer
+    ports:
+      - "${ADMINER_FORWARD_PORT:-8088}:8080"
+    networks:
+      - egames-network
+
+  app:
+    build:
+      context: ..
+      dockerfile: .devcontainer/Dockerfile
+    env_file:
+      - .env
+    volumes:
+      - ..:/workspace/app
+    command: sleep infinity
+    depends_on:
+      - egames-db
+    networks:
+      - egames-network
+    ports:
+      - "${SERVER_SERVICE_PORT}:${SERVER_SERVICE_PORT}"
